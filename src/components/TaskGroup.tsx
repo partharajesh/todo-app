@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { DUE_GROUP_CONFIG } from '../utils/groupByDueDate';
-import { TaskCard } from './TaskCard';
+import { SortableTaskCard } from './SortableTaskCard';
 import type { DueGroupKey, Task } from '../types';
 
 interface Props {
@@ -34,17 +35,19 @@ export function TaskGroup({ groupKey, tasks, onToggle, onEdit, onDelete, default
       </button>
 
       {!collapsed && (
-        <div className="space-y-2 mb-6">
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onToggle={onToggle}
-              onEdit={onEdit}
-              onDelete={onDelete}
-            />
-          ))}
-        </div>
+        <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2 mb-6">
+            {tasks.map((task) => (
+              <SortableTaskCard
+                key={task.id}
+                task={task}
+                onToggle={onToggle}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
+            ))}
+          </div>
+        </SortableContext>
       )}
     </div>
   );

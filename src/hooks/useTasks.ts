@@ -23,6 +23,7 @@ interface RawTask {
   completed: boolean;
   priority: string | null;
   recurrence: string | null;
+  sort_order: number | null;
   created_at: string;
   task_tags: RawTaskTag[];
 }
@@ -63,6 +64,7 @@ export function useTasks(userId: string | undefined) {
         completed: t.completed,
         priority: (t.priority as Priority) ?? null,
         recurrence: (t.recurrence as Recurrence) ?? null,
+        sort_order: t.sort_order ?? null,
         created_at: t.created_at,
         tags: t.task_tags?.flatMap((tt) => (tt.tags ? [tt.tags] : [])) ?? [],
       }));
@@ -184,5 +186,21 @@ export function useTasks(userId: string | undefined) {
     await fetchTasks();
   };
 
-  return { tasks, loading, createTask, updateTask, deleteTask, toggleComplete, refetch: fetchTasks };
+  const reorderTasks = async (updates: Array<{ id: string; sort_order: number }>) => {
+    // Optimistic update first
+    setTasks((prev) =>
+      prev.map((t) => {
+        const u = updates.find((x) => x.id === t.id);
+        return u ? { ...t, sort_order: u.sort_order } : t;
+      })
+    );
+    // Persist in parallel
+    await Promise.all(
+      updates.map(({ id, sort_order }) =>
+        supabase.from('tasks').update({ sort_order }).eq('id', id)
+      )
+    );
+  };
+
+  return { tasks, loading, createTask, updateTask, deleteTask, toggleComplete, reorderTasks, refetch: fetchTasks };
 }

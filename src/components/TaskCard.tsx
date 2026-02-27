@@ -1,5 +1,5 @@
 import { format, isToday, isPast, parseISO } from 'date-fns';
-import { Pencil, Trash2, Calendar, RefreshCw } from 'lucide-react';
+import { Pencil, Trash2, Calendar, RefreshCw, GripVertical } from 'lucide-react';
 import type { Task } from '../types';
 
 interface Props {
@@ -7,6 +7,7 @@ interface Props {
   onToggle: (id: string, completed: boolean) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
+  dragHandleProps?: Record<string, unknown>;
 }
 
 const PRIORITY_STYLE = {
@@ -22,7 +23,7 @@ const RECURRENCE_LABEL = {
   yearly:  'Yearly',
 };
 
-export function TaskCard({ task, onToggle, onEdit, onDelete }: Props) {
+export function TaskCard({ task, onToggle, onEdit, onDelete, dragHandleProps }: Props) {
   const getDueDateInfo = () => {
     if (!task.due_date) return null;
     const date = parseISO(task.due_date);
@@ -46,6 +47,15 @@ export function TaskCard({ task, onToggle, onEdit, onDelete }: Props) {
         isOverdue ? 'border-red-100 bg-red-50/40' : 'border-gray-100 hover:border-gray-200'
       }`}
     >
+      {dragHandleProps && (
+        <button
+          className="mt-0.5 flex-shrink-0 cursor-grab active:cursor-grabbing p-0.5 text-gray-200 hover:text-gray-400 transition-colors touch-none"
+          aria-label="Drag to reorder"
+          {...dragHandleProps}
+        >
+          <GripVertical size={14} />
+        </button>
+      )}
       <button
         onClick={() => onToggle(task.id, !task.completed)}
         className={`mt-0.5 w-5 h-5 flex-shrink-0 rounded-full border-2 transition-all flex items-center justify-center ${

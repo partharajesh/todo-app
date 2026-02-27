@@ -81,6 +81,10 @@ export function sortTasks(tasks: Task[], sortOption: SortOption): Task[] {
       }
       case 'due-date':
       default:
+        // Manual sort_order takes priority when set
+        if (a.sort_order !== null && b.sort_order !== null) return a.sort_order - b.sort_order;
+        if (a.sort_order !== null) return -1;
+        if (b.sort_order !== null) return 1;
         if (!a.due_date && !b.due_date) return 0;
         if (!a.due_date) return 1;
         if (!b.due_date) return -1;

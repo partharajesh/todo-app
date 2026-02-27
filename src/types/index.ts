@@ -28,6 +28,7 @@ export interface Task {
   completed: boolean;
   priority: Priority | null;
   recurrence: Recurrence | null;
+  sort_order: number | null;
   created_at: string;
   tags?: Tag[];
 }
