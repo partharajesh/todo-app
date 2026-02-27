@@ -9,12 +9,13 @@ interface Props {
   groupKey: DueGroupKey;
   tasks: Task[];
   onToggle: (id: string, completed: boolean) => void;
+  onUpdate: (id: string, updates: { title: string }) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   defaultCollapsed?: boolean;
 }
 
-export function TaskGroup({ groupKey, tasks, onToggle, onEdit, onDelete, defaultCollapsed = false }: Props) {
+export function TaskGroup({ groupKey, tasks, onToggle, onUpdate, onEdit, onDelete, defaultCollapsed = false }: Props) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const config = DUE_GROUP_CONFIG[groupKey];
 
@@ -42,6 +43,7 @@ export function TaskGroup({ groupKey, tasks, onToggle, onEdit, onDelete, default
                 key={task.id}
                 task={task}
                 onToggle={onToggle}
+                onUpdate={onUpdate}
                 onEdit={onEdit}
                 onDelete={onDelete}
               />

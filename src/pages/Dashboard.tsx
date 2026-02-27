@@ -416,7 +416,9 @@ export function Dashboard() {
                 {groups.map(({ key, tasks: groupTasks }) => (
                   <TaskGroup
                     key={key} groupKey={key} tasks={groupTasks}
-                    onToggle={toggleComplete} onEdit={openEdit} onDelete={deleteTask}
+                    onToggle={toggleComplete}
+                    onUpdate={(id, updates) => updateTask(id, updates)}
+                    onEdit={openEdit} onDelete={deleteTask}
                     defaultCollapsed={key === 'completed'}
                   />
                 ))}
@@ -428,7 +430,7 @@ export function Dashboard() {
         <DragOverlay>
           {activeTask && (
             <div className="shadow-xl opacity-95 rotate-1">
-              <TaskCard task={activeTask} onToggle={() => {}} onEdit={() => {}} onDelete={() => {}} />
+              <TaskCard task={activeTask} onToggle={() => {}} onUpdate={() => {}} onEdit={() => {}} onDelete={() => {}} />
             </div>
           )}
         </DragOverlay>

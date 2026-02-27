@@ -6,6 +6,7 @@ import type { Task } from '../types';
 interface Props {
   task: Task;
   onToggle: (id: string, completed: boolean) => void;
+  onUpdate: (id: string, updates: { title: string }) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
 }

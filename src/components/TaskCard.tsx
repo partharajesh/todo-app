@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { format, isToday, isPast, parseISO } from 'date-fns';
 import { Pencil, Trash2, Calendar, RefreshCw, GripVertical } from 'lucide-react';
 import type { Task } from '../types';
@@ -5,6 +6,7 @@ import type { Task } from '../types';
 interface Props {
   task: Task;
   onToggle: (id: string, completed: boolean) => void;
+  onUpdate: (id: string, updates: { title: string }) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   dragHandleProps?: Record<string, unknown>;
@@ -23,7 +25,41 @@ const RECURRENCE_LABEL = {
   yearly:  'Yearly',
 };
 
-export function TaskCard({ task, onToggle, onEdit, onDelete, dragHandleProps }: Props) {
+export function TaskCard({ task, onToggle, onUpdate, onEdit, onDelete, dragHandleProps }: Props) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(task.title);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [isEditing]);
+
+  // Keep editValue in sync if task.title changes externally
+  useEffect(() => {
+    if (!isEditing) setEditValue(task.title);
+  }, [task.title, isEditing]);
+
+  const handleSave = () => {
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== task.title) {
+      onUpdate(task.id, { title: trimmed });
+    } else {
+      setEditValue(task.title);
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleSave();
+    if (e.key === 'Escape') {
+      setEditValue(task.title);
+      setIsEditing(false);
+    }
+  };
+
   const getDueDateInfo = () => {
     if (!task.due_date) return null;
     const date = parseISO(task.due_date);
@@ -56,6 +92,7 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, dragHandleProps }: 
           <GripVertical size={14} />
         </button>
       )}
+
       <button
         onClick={() => onToggle(task.id, !task.completed)}
         className={`mt-0.5 w-5 h-5 flex-shrink-0 rounded-full border-2 transition-all flex items-center justify-center ${
@@ -67,28 +104,40 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, dragHandleProps }: 
       >
         {task.completed && (
           <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
-            <path
-              d="M2 6l3 3 5-5"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         )}
       </button>
 
       <div className="flex-1 min-w-0">
-        <p
-          className={`text-sm font-medium leading-snug ${
-            task.completed ? 'line-through text-gray-400' : 'text-gray-800'
-          }`}
-        >
-          {task.title}
-        </p>
-        {task.notes && (
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={handleKeyDown}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full text-sm font-medium text-gray-800 bg-transparent outline-none border-b-2 border-indigo-400 pb-0.5"
+          />
+        ) : (
+          <p
+            onClick={() => !task.completed && setIsEditing(true)}
+            title={task.completed ? undefined : 'Click to edit'}
+            className={`text-sm font-medium leading-snug ${
+              task.completed
+                ? 'line-through text-gray-400'
+                : 'text-gray-800 cursor-text hover:text-indigo-600 transition-colors'
+            }`}
+          >
+            {task.title}
+          </p>
+        )}
+
+        {task.notes && !isEditing && (
           <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{task.notes}</p>
         )}
+
         <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
           {task.priority && (
             <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${PRIORITY_STYLE[task.priority]}`}>
@@ -114,7 +163,7 @@ export function TaskCard({ task, onToggle, onEdit, onDelete, dragHandleProps }: 
         <button
           onClick={() => onEdit(task)}
           className="p-2 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
-          aria-label="Edit task"
+          aria-label="Edit task details"
         >
           <Pencil size={14} />
         </button>
