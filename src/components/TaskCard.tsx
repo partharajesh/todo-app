@@ -1,7 +1,6 @@
 import { format, isToday, isPast, parseISO } from 'date-fns';
-import { Pencil, Trash2, Calendar } from 'lucide-react';
+import { Pencil, Trash2, Calendar, RefreshCw } from 'lucide-react';
 import type { Task } from '../types';
-import { TagBadge } from './TagBadge';
 
 interface Props {
   task: Task;
@@ -9,6 +8,19 @@ interface Props {
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
 }
+
+const PRIORITY_STYLE = {
+  high:   'bg-red-100 text-red-600',
+  medium: 'bg-amber-100 text-amber-600',
+  low:    'bg-blue-100 text-blue-600',
+};
+
+const RECURRENCE_LABEL = {
+  daily:   'Daily',
+  weekly:  'Weekly',
+  monthly: 'Monthly',
+  yearly:  'Yearly',
+};
 
 export function TaskCard({ task, onToggle, onEdit, onDelete }: Props) {
   const getDueDateInfo = () => {
@@ -68,13 +80,23 @@ export function TaskCard({ task, onToggle, onEdit, onDelete }: Props) {
           <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{task.notes}</p>
         )}
         <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+          {task.priority && (
+            <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${PRIORITY_STYLE[task.priority]}`}>
+              {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+            </span>
+          )}
           {dueDateInfo && (
             <span className={`flex items-center gap-1 text-xs ${dueDateInfo.className}`}>
               <Calendar size={11} />
               {dueDateInfo.label}
             </span>
           )}
-          {task.tags?.map((tag) => <TagBadge key={tag.id} tag={tag} />)}
+          {task.recurrence && (
+            <span className="flex items-center gap-1 text-xs text-gray-400">
+              <RefreshCw size={10} />
+              {RECURRENCE_LABEL[task.recurrence]}
+            </span>
+          )}
         </div>
       </div>
 

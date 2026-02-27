@@ -1,51 +1,39 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Plus, Tag, AlertCircle } from 'lucide-react';
-import type { Task, Tag as TagType, List } from '../types';
-
-const TAG_COLORS = [
-  '#ef4444',
-  '#f97316',
-  '#eab308',
-  '#22c55e',
-  '#06b6d4',
-  '#6366f1',
-  '#a855f7',
-  '#ec4899',
-  '#64748b',
-  '#78716c',
-];
+import { X, AlertCircle } from 'lucide-react';
+import type { Task, List, Priority, Recurrence } from '../types';
 
 interface SaveData {
   title: string;
   notes: string;
   due_date: string;
-  tag_ids: string[];
   list_id: string | null;
+  priority: Priority | null;
+  recurrence: Recurrence | null;
 }
 
 interface Props {
   task?: Task | null;
-  tags: TagType[];
   lists: List[];
   defaultListId?: string | null;
-  onCreateTag: (name: string, color: string) => Promise<TagType | undefined>;
   onSave: (data: SaveData) => Promise<{ error: string | null } | undefined>;
   onClose: () => void;
 }
 
-export function TaskModal({ task, tags, lists, defaultListId, onCreateTag, onSave, onClose }: Props) {
+const RECURRENCE_OPTIONS: { value: Recurrence | ''; label: string }[] = [
+  { value: '',         label: 'Does not repeat' },
+  { value: 'daily',   label: 'Daily' },
+  { value: 'weekly',  label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'yearly',  label: 'Yearly' },
+];
+
+export function TaskModal({ task, lists, defaultListId, onSave, onClose }: Props) {
   const [title, setTitle] = useState(task?.title ?? '');
   const [notes, setNotes] = useState(task?.notes ?? '');
   const [dueDate, setDueDate] = useState(task?.due_date ?? '');
-  const [listId, setListId] = useState<string | null>(
-    task?.list_id ?? defaultListId ?? null
-  );
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
-    task?.tags?.map((t) => t.id) ?? []
-  );
-  const [newTagName, setNewTagName] = useState('');
-  const [newTagColor, setNewTagColor] = useState(TAG_COLORS[5]);
-  const [showTagCreate, setShowTagCreate] = useState(false);
+  const [listId, setListId] = useState<string | null>(task?.list_id ?? defaultListId ?? null);
+  const [priority, setPriority] = useState<Priority | null>(task?.priority ?? null);
+  const [recurrence, setRecurrence] = useState<Recurrence | null>(task?.recurrence ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const titleRef = useRef<HTMLInputElement>(null);
@@ -58,35 +46,13 @@ export function TaskModal({ task, tags, lists, defaultListId, onCreateTag, onSav
     if (!title.trim()) return;
     setError('');
     setSaving(true);
-    const result = await onSave({
-      title: title.trim(),
-      notes,
-      due_date: dueDate,
-      tag_ids: selectedTagIds,
-      list_id: listId,
-    });
+    const result = await onSave({ title: title.trim(), notes, due_date: dueDate, list_id: listId, priority, recurrence });
     setSaving(false);
     if (result?.error) {
       setError(result.error);
     } else {
       onClose();
     }
-  };
-
-  const handleCreateTag = async () => {
-    if (!newTagName.trim()) return;
-    const tag = await onCreateTag(newTagName.trim(), newTagColor);
-    if (tag) {
-      setSelectedTagIds((prev) => [...prev, tag.id]);
-      setNewTagName('');
-      setShowTagCreate(false);
-    }
-  };
-
-  const toggleTag = (id: string) => {
-    setSelectedTagIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
   };
 
   return (
@@ -129,6 +95,7 @@ export function TaskModal({ task, tags, lists, defaultListId, onCreateTag, onSav
             className="w-full text-sm text-gray-600 placeholder:text-gray-400 border border-gray-200 rounded-lg p-3 outline-none focus:ring-2 focus:ring-indigo-200 resize-none"
           />
 
+          {/* Due date + Folder */}
           <div className="flex flex-wrap gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1.5">Due date</label>
@@ -140,10 +107,7 @@ export function TaskModal({ task, tags, lists, defaultListId, onCreateTag, onSav
                   className="text-sm text-gray-700 border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-200"
                 />
                 {dueDate && (
-                  <button
-                    onClick={() => setDueDate('')}
-                    className="text-xs text-gray-400 hover:text-gray-600"
-                  >
+                  <button onClick={() => setDueDate('')} className="text-xs text-gray-400 hover:text-gray-600">
                     Clear
                   </button>
                 )}
@@ -160,75 +124,49 @@ export function TaskModal({ task, tags, lists, defaultListId, onCreateTag, onSav
                 >
                   <option value="">No folder</option>
                   {lists.map((list) => (
-                    <option key={list.id} value={list.id}>
-                      {list.name}
-                    </option>
+                    <option key={list.id} value={list.id}>{list.name}</option>
                   ))}
                 </select>
               </div>
             )}
           </div>
 
+          {/* Priority */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-2">Tags</label>
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {tags.map((tag) => (
+            <label className="block text-xs font-medium text-gray-500 mb-2">
+              Priority <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <div className="flex gap-2">
+              {(['high', 'medium', 'low'] as Priority[]).map((p) => (
                 <button
-                  key={tag.id}
-                  onClick={() => toggleTag(tag.id)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium text-white transition-opacity ${
-                    selectedTagIds.includes(tag.id)
-                      ? 'opacity-100 outline outline-2 outline-offset-1 outline-gray-400'
-                      : 'opacity-50 hover:opacity-75'
+                  key={p}
+                  onClick={() => setPriority(priority === p ? null : p)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    priority === p
+                      ? p === 'high'   ? 'bg-red-500 text-white'
+                      : p === 'medium' ? 'bg-amber-500 text-white'
+                      :                  'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
-                  style={{ backgroundColor: tag.color }}
                 >
-                  {tag.name}
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
                 </button>
               ))}
-              <button
-                onClick={() => setShowTagCreate(!showTagCreate)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
-              >
-                <Plus size={10} />
-                New tag
-              </button>
             </div>
+          </div>
 
-            {showTagCreate && (
-              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                <Tag size={14} className="text-gray-400 flex-shrink-0" />
-                <input
-                  type="text"
-                  placeholder="Tag name"
-                  value={newTagName}
-                  onChange={(e) => setNewTagName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateTag()}
-                  className="flex-1 text-xs bg-transparent outline-none text-gray-700 placeholder:text-gray-400"
-                  autoFocus
-                />
-                <div className="flex gap-1">
-                  {TAG_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => setNewTagColor(color)}
-                      className={`w-4 h-4 rounded-full transition-transform ${
-                        newTagColor === color ? 'scale-125 ring-1 ring-offset-1 ring-gray-400' : ''
-                      }`}
-                      style={{ backgroundColor: color }}
-                      aria-label={`Select color ${color}`}
-                    />
-                  ))}
-                </div>
-                <button
-                  onClick={handleCreateTag}
-                  disabled={!newTagName.trim()}
-                  className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-40"
-                >
-                  Add
-                </button>
-              </div>
-            )}
+          {/* Recurrence */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Repeat</label>
+            <select
+              value={recurrence ?? ''}
+              onChange={(e) => setRecurrence((e.target.value as Recurrence) || null)}
+              className="text-sm text-gray-700 border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-200 bg-white"
+            >
+              {RECURRENCE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </div>
 
           {error && (

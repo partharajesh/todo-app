@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { parseISO, addDays, addWeeks, addMonths, addYears, format } from 'date-fns';
 import { supabase } from '../lib/supabase';
-import type { Task } from '../types';
+import type { Task, Priority, Recurrence } from '../types';
 
 interface RawTaskTag {
   tags: {
@@ -20,8 +21,20 @@ interface RawTask {
   notes: string | null;
   due_date: string | null;
   completed: boolean;
+  priority: string | null;
+  recurrence: string | null;
   created_at: string;
   task_tags: RawTaskTag[];
+}
+
+function getNextDueDate(currentDate: string, recurrence: Recurrence): string {
+  const date = parseISO(currentDate);
+  switch (recurrence) {
+    case 'daily':   return format(addDays(date, 1), 'yyyy-MM-dd');
+    case 'weekly':  return format(addWeeks(date, 1), 'yyyy-MM-dd');
+    case 'monthly': return format(addMonths(date, 1), 'yyyy-MM-dd');
+    case 'yearly':  return format(addYears(date, 1), 'yyyy-MM-dd');
+  }
 }
 
 export function useTasks(userId: string | undefined) {
@@ -48,6 +61,8 @@ export function useTasks(userId: string | undefined) {
         notes: t.notes,
         due_date: t.due_date,
         completed: t.completed,
+        priority: (t.priority as Priority) ?? null,
+        recurrence: (t.recurrence as Recurrence) ?? null,
         created_at: t.created_at,
         tags: t.task_tags?.flatMap((tt) => (tt.tags ? [tt.tags] : [])) ?? [],
       }));
@@ -65,6 +80,8 @@ export function useTasks(userId: string | undefined) {
     notes?: string;
     due_date?: string;
     list_id?: string | null;
+    priority?: Priority | null;
+    recurrence?: Recurrence | null;
     tag_ids?: string[];
   }): Promise<{ error: string | null }> => {
     if (!userId) return { error: 'Not logged in' };
@@ -76,6 +93,8 @@ export function useTasks(userId: string | undefined) {
         notes: task.notes || null,
         due_date: task.due_date || null,
         list_id: task.list_id || null,
+        priority: task.priority || null,
+        recurrence: task.recurrence || null,
         user_id: userId,
       })
       .select()
@@ -88,10 +107,9 @@ export function useTasks(userId: string | undefined) {
     if (!data) return { error: 'Task could not be saved. Please try again.' };
 
     if (task.tag_ids && task.tag_ids.length > 0) {
-      const { error: tagError } = await supabase
+      await supabase
         .from('task_tags')
         .insert(task.tag_ids.map((tag_id) => ({ task_id: data.id, tag_id })));
-      if (tagError) console.error('createTask tag error:', tagError);
     }
 
     await fetchTasks();
@@ -105,6 +123,8 @@ export function useTasks(userId: string | undefined) {
       notes?: string;
       due_date?: string | null;
       list_id?: string | null;
+      priority?: Priority | null;
+      recurrence?: Recurrence | null;
       completed?: boolean;
       tag_ids?: string[];
     }
@@ -138,8 +158,30 @@ export function useTasks(userId: string | undefined) {
   };
 
   const toggleComplete = async (id: string, completed: boolean) => {
-    await supabase.from('tasks').update({ completed }).eq('id', id);
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, completed } : t)));
+    const { error } = await supabase.from('tasks').update({ completed }).eq('id', id);
+    if (error) {
+      console.error('toggleComplete error:', error);
+      return;
+    }
+
+    // Auto-create next occurrence when completing a recurring task
+    if (completed) {
+      const task = tasks.find((t) => t.id === id);
+      if (task?.recurrence && task.due_date) {
+        const nextDueDate = getNextDueDate(task.due_date, task.recurrence);
+        await supabase.from('tasks').insert({
+          title: task.title,
+          notes: task.notes,
+          due_date: nextDueDate,
+          list_id: task.list_id,
+          priority: task.priority,
+          recurrence: task.recurrence,
+          user_id: userId,
+        });
+      }
+    }
+
+    await fetchTasks();
   };
 
   return { tasks, loading, createTask, updateTask, deleteTask, toggleComplete, refetch: fetchTasks };
